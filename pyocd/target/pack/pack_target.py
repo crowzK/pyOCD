@@ -17,13 +17,14 @@
 
 import logging
 import os
-from typing import (IO, TYPE_CHECKING, List, Optional, Tuple, Type, Union)
+from typing import (IO, TYPE_CHECKING, Callable, Iterable, List, Optional, Type, Union)
 
 from .cmsis_pack import (CmsisPack, CmsisPackDevice, MalformedCmsisPackError)
 from ..family import FAMILIES
 from .. import TARGET
 from ...coresight.coresight_target import CoreSightTarget
 from ...debug.svd.loader import SVDFile
+from .. import normalise_target_type_name
 
 if TYPE_CHECKING:
     from zipfile import ZipFile
@@ -96,10 +97,10 @@ class ManagedPacksImpl:
         device part number is used to find the target to populate. If multiple packs are installed
         that provide the same part numbers, all matching targets will be populated.
         """
-        device_name = device_name.lower()
+        device_name = normalise_target_type_name(device_name)
         targets = ManagedPacks.get_installed_targets()
         for dev in targets:
-            if device_name == dev.part_number.lower():
+            if device_name == normalise_target_type_name(dev.part_number):
                 PackTargets.populate_device(dev)
 
 if CPM_AVAILABLE:
@@ -171,7 +172,7 @@ class PackTargets:
             superklass = PackTargets._find_family_class(dev)
 
             # Replace spaces and dashes with underscores on the new target subclass name.
-            subclassName = dev.part_number.replace(' ', '_').replace('-', '_')
+            subclassName = normalise_target_type_name(dev.part_number).capitalize()
 
             # Create a new subclass for this target.
             targetClass = type(subclassName, (superklass,), {
@@ -197,7 +198,7 @@ class PackTargets:
             tgt = PackTargets._generate_pack_target_class(dev)
             if tgt is None:
                 return
-            part = dev.part_number.lower().replace("-", "_")
+            part = normalise_target_type_name(dev.part_number)
 
             # Make sure there isn't a duplicate target name.
             if part not in TARGET:
@@ -210,14 +211,16 @@ class PackTargets:
     PackReferenceType = Union[CmsisPack, str, "ZipFile", IO[bytes]]
 
     @staticmethod
-    def populate_targets_from_pack(pack_list: Union[PackReferenceType, List[PackReferenceType], Tuple[PackReferenceType]]) -> None:
-        """@brief Adds targets defined in the provided CMSIS-Pack.
-
-        Targets are added to the `#TARGET` list.
+    def process_targets_from_pack(
+            pack_list: Union[PackReferenceType, Iterable[PackReferenceType]],
+            cb: Callable[[CmsisPackDevice], None]
+        ) -> None:
+        """@brief Invoke a callable on devices defined in the provided CMSIS-Pack(s).
 
         @param pack_list Sequence of strings that are paths to .pack files, file objects,
             ZipFile instances, or CmsisPack instance. May also be a single object of one of
             the accepted types.
+        @param cb Callable to run. Must take a CmsisPackDevice object as the sole parameter and return None.
         """
         if not isinstance(pack_list, (list, tuple)):
             pack_list = [pack_list]
@@ -227,4 +230,35 @@ class PackTargets:
             else:
                 pack = CmsisPack(pack_or_path)
             for dev in pack.devices:
-                PackTargets.populate_device(dev)
+                cb(dev)
+
+    @staticmethod
+    def populate_targets_from_pack(pack_list: Union[PackReferenceType, Iterable[PackReferenceType]]) -> None:
+        """@brief Adds targets defined in the provided CMSIS-Pack.
+
+        Targets are added to the `#TARGET` list.
+
+        @param pack_list Sequence of strings that are paths to .pack files, file objects,
+            ZipFile instances, or CmsisPack instance. May also be a single object of one of
+            the accepted types.
+        """
+        PackTargets.process_targets_from_pack(pack_list, PackTargets.populate_device)
+
+def is_pack_target_available(target_name: str, session: "Session") -> bool:
+    """@brief Test whether a given target type is available."""
+    # Create targets from provided CMSIS pack.
+    if session.options['pack'] is not None:
+        target_types = []
+        def collect_target_type(dev: CmsisPackDevice) -> None:
+            part = normalise_target_type_name(dev.part_number)
+            target_types.append(part)
+        PackTargets.process_targets_from_pack(session.options['pack'], collect_target_type)
+        return target_name.lower() in target_types
+
+    # Check whether a managed pack contains the target.
+    return any(
+                (target_name.lower() == dev.part_number.lower())
+                for dev in ManagedPacks.get_installed_targets()
+                )
+
+

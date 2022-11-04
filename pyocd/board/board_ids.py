@@ -19,7 +19,7 @@ from typing import (NamedTuple, Optional)
 
 class BoardInfo(NamedTuple):
     name: str
-    target: str
+    target: Optional[str] = None
     binary: Optional[str] = None
     vendor: Optional[str] = None
 
@@ -68,7 +68,7 @@ BOARD_ID_TO_INFO = {
     "0243": BoardInfo(  "MIMXRT1015-EVK",       "mimxrt1015",       "l1_mimxrt1015-evk.bin",),
     "0244": BoardInfo(  "MIMXRT1170-EVK",       "mimxrt1170_cm7",   "l1_rt1170.bin",          ),
     "0245": BoardInfo(  "IBMEthernetKit",       "k64f",             "l1_k64f.bin"           ),
-    "0246": BoardInfo(  "MIMXRT1160-EVK",       "mimxrt1160_cm7",   None,                   ),
+    "0246": BoardInfo(  "MIMXRT1160-EVK",       "mimxrt1166xxxxx",  None,                   ),
     "0250": BoardInfo(  "FRDM-KW24D512",        "kw24d5",           "l1_kw24d5.bin"         ),
     "0251": BoardInfo(  "FRDM-KW36",            "kw36z4",           "l1_kw36z.bin",         ),
     "0252": BoardInfo(  "FRDM-KW38",            "kw38z4",           None,                   ),
@@ -107,6 +107,7 @@ BOARD_ID_TO_INFO = {
     "0418": BoardInfo(  "MAX32620FTHR",         "max32620",         "max32620fthr.bin",     ),
     "0420": BoardInfo(  "MAX32630HSP3",         "max32630",         None                    ),
     "0421": BoardInfo(  "MAX32660EVSYS",        "max32660",         "max32660evsys.bin",    ),
+    "0424": BoardInfo(  "MAX32670EVKIT",        "max32670",         "max32670evkit.bin",    ),
     "0451": BoardInfo(  "MTB MXChip EMW3166",   "stm32f412xg",      "mtb_mxchip_emw3166.bin",),
     "0459": BoardInfo(  "MTB Advantech WISE-1530", "stm32f412xg",   "mtb_wise-1530.bin",    ),
     "0462": BoardInfo(  "MTB USI WM-BN-BM-22",  "stm32f412xg",      "mtb_usi_wm-bn-bm-22.bin",),
@@ -226,6 +227,7 @@ BOARD_ID_TO_INFO = {
     "1309": BoardInfo(  "NuMaker-M252KG",       "m252kg6ae",        None,                   ),
     "1310": BoardInfo(  "NuMaker-IoT-M263A",    "m263kiaae",        None,                   ),
     "1312": BoardInfo(  "NuMaker-M2354",        "m2354kjfae",       None,                   ),
+    "1313": BoardInfo(  "NuMaker-IoT-M467",     "m467hjhae",        None,                   ),
     "1549": BoardInfo(  "LPC1549",              "lpc1549jbd100",    None,                   ),
     "1600": BoardInfo(  "Bambino 210",          "lpc4330",          "l1_lpc4330.bin",       ),
     "1605": BoardInfo(  "Bambino 210E",         "lpc4330",          "l1_lpc4330.bin",       ),

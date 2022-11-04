@@ -47,7 +47,8 @@ class _DeviceInfo:
 def _get_part_number_from_element(element: Element) -> str:
     """@brief Extract the part number from a device or variant XML element."""
     assert element.tag in ("device", "variant")
-    if element.tag == "device":
+    # Both device and variant may have 'Dname' according to the latest spec.
+    if 'Dname' in element.attrib:
         return element.attrib['Dname']
     elif element.tag == "variant":
         return element.attrib['Dvariant']
@@ -128,6 +129,13 @@ class CmsisPack:
             opened (due to particularities of the ZipFile implementation).
         """
         filename = filename.replace('\\', '/')
+
+        # Some vendors place their pdsc in some subdirectories of the pack archive,
+        # use relative directory to the pdsc file while reading other files.
+        pdsc_base = self._pdscName.rsplit('/', 1)
+        if len(pdsc_base) == 2:
+            filename = f'{pdsc_base[0]}/{filename}'
+
         return io.BytesIO(self._pack_file.read(filename))
 
 class CmsisPackDescription:
