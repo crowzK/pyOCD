@@ -1,6 +1,6 @@
 # pyOCD debugger
 # Copyright (c) 2018-2020 Arm Limited
-# Copyright (c) 2021 Chris Reed
+# Copyright (c) 2021-2022 Chris Reed
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -23,7 +23,9 @@ import os
 from pathlib import Path
 import weakref
 from inspect import (getfullargspec, signature)
+from types import SimpleNamespace
 from typing import (Any, Callable, Generator, Sequence, Union, cast, Dict, List, Mapping, Optional, TYPE_CHECKING)
+from typing_extensions import Self
 
 from . import exceptions
 from .options_manager import OptionsManager
@@ -93,8 +95,11 @@ class Session(Notifier):
     ## @brief Weak reference to the most recently created session.
     _current_session: Optional[weakref.ref] = None
 
+    ## An empty session used for options when there is no other session available.
+    _options_session: Optional["Session"] = None
+
     @classmethod
-    def get_current(cls) -> "Session":
+    def get_current(cls) -> Self:
         """@brief Return the most recently created Session instance or a default Session.
 
         By default this method will return the most recently created Session object that is
@@ -110,7 +115,10 @@ class Session(Notifier):
             if session is not None:
                 return session
 
-        return Session(None)
+        # There isn't another session available, so lazily create the options session and return it.
+        if cls._options_session is None:
+            cls._options_session = cls(None)
+        return cls._options_session
 
     def __init__(
             self,
@@ -160,6 +168,7 @@ class Session(Notifier):
         self._options = OptionsManager()
         self._gdbservers: Dict[int, "GDBServer"] = {}
         self._probeserver: Optional["DebugProbeServer"] = None
+        self._context_state = SimpleNamespace()
 
         # Set this session on the probe, if we were given a probe.
         if probe is not None:
@@ -383,6 +392,15 @@ class Session(Notifier):
     def log_tracebacks(self) -> bool:
         """@brief Quick access to debug.traceback option since it is widely used."""
         return cast(bool, self.options.get('debug.traceback'))
+
+    @property
+    def context_state(self) -> SimpleNamespace:
+        """@brief Global session state namespace.
+
+        The returned object is a namespace object on which arbitrary attributes can be read and written
+        to store context relevant state information between separate components.
+        """
+        return self._context_state
 
     def __enter__(self) -> "Session":
         assert self._probe is not None
