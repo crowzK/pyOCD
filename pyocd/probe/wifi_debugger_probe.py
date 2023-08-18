@@ -20,6 +20,7 @@ import json
 import threading
 import serial
 import serial.tools.list_ports as prtlst
+import time
 from typing import (Any, Optional, Tuple)
 
 from .debug_probe import DebugProbe
@@ -163,9 +164,16 @@ class WiFiDebuggerProbe(DebugProbe):
             self.serial.write(formatted_request.encode('utf-8') + b"\n")
 
             # Read response.
-            response_data = self.serial.readline().decode('utf-8').strip()
-            print(response_data)
-            decoded_response = json.loads(response_data)
+            TRACE.debug("Read: %s", formatted_request)
+            response_data = ""
+            while True:
+                response_data = self.serial.readline().decode('utf-8').strip()
+                try :
+                    decoded_response = json.loads(response_data)
+                except ValueError as e:
+                    TRACE.debug("RCV [{}]".format(response_data))
+                    continue
+                break
             TRACE.debug("decoded_response = %s", decoded_response)
 
             # Check for required keys.
@@ -214,10 +222,20 @@ class WiFiDebuggerProbe(DebugProbe):
 
     def open(self):
         if not self._is_open:
-            print("serial port open")
+            TRACE.debug("serial port open")
             self.serial.open()
             self._is_open = True
 
+        self.serial.write(b'\x02\x0a')
+        time.sleep(1)
+        self.serial.write("pyocd".encode('utf-8') + b"\n")
+        
+        while True:
+            response_data = self.serial.readline().decode('utf-8').strip()
+            TRACE.debug(response_data)
+            if response_data == "execute":
+                break
+            
         # Send hello message.
         self._perform_request('hello', self.PROTOCOL_VERSION)
 
