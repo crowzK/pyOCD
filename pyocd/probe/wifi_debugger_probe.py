@@ -160,11 +160,22 @@ class WiFiDebuggerProbe(DebugProbe):
             formatted_request = json.dumps(rq)
             TRACE.debug("Request: %s", formatted_request)
 
+            # Empty UART buffer
+            response_data = self.serial.read_all()
+            if len(response_data):
+                TRACE.debug("RCV_PRE [{}]".format(response_data).decode('utf-8').strip())
+
             # Send request to server.
-            self.serial.write(formatted_request.encode('utf-8') + b"\n")
+            bytes = formatted_request.encode('utf-8')
+            chunk_length = 1024
+            chunks = [bytes[i:i+chunk_length] for i in range(0, len(bytes), chunk_length)]
+            for chunk in chunks:
+                self.serial.write(chunk)
+                if(len(chunk) >= chunk_length):
+                   time.sleep(0.001)    # ESP32 cannot receive if HOST send data too quickly
+            self.serial.write(b"\n")
 
             # Read response.
-            TRACE.debug("Read: %s", formatted_request)
             response_data = ""
             while True:
                 response_data = self.serial.readline().decode('utf-8').strip()
