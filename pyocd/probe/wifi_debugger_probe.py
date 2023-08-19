@@ -167,7 +167,7 @@ class WiFiDebuggerProbe(DebugProbe):
 
             # Send request to server.
             bytes = formatted_request.encode('utf-8')
-            chunk_length = 1024
+            chunk_length = 512
             chunks = [bytes[i:i+chunk_length] for i in range(0, len(bytes), chunk_length)]
             for chunk in chunks:
                 self.serial.write(chunk)
